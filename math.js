@@ -76,7 +76,7 @@ additionButton.addEventListener("click", function() {
         }
 
         // Validate the numbers
-        const numberPattern = /^\d+(\.\d+)?$/;
+        const numberPattern = /^-?\d+(\.\d+)?$/;
 
         if (!numbers.every(number => numberPattern.test(number))) {
             answerDisplay.textContent =
