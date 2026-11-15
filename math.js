@@ -89,7 +89,6 @@ additionButton.addEventListener("click", function() {
         // NEGATIVE NUMBER CALCULATION
         // ==================================================
 
-        // Check whether any number is negative
         if (numbers.some(number => number.startsWith("-"))) {
 
             // Find the maximum decimal places
@@ -99,10 +98,7 @@ additionButton.addEventListener("click", function() {
                 )
             );
 
-            // Convert decimals into whole-number units
-            const scale = 10n ** BigInt(decimalPlaces);
-
-            // Convert a number into a scaled BigInt
+            // Convert numbers into scaled integers
             function toScaledInteger(number) {
 
                 const negative = number.startsWith("-");
@@ -126,13 +122,7 @@ additionButton.addEventListener("click", function() {
             // Convert all entered numbers
             const values = numbers.map(toScaledInteger);
 
-            // Calculate the final answer
-            const total = values.reduce(
-                (sum, value) => sum + value,
-                0n
-            );
-
-            // Format scaled numbers for display
+            // Format numbers for display
             function formatNumber(value) {
 
                 const negative = value < 0n;
@@ -165,43 +155,312 @@ additionButton.addEventListener("click", function() {
                 return (negative ? "-" : "") + digits;
             }
 
-            // Build the vertical problem
-            let verticalProblem = `
-                <h3>Let's Work It Out!</h3>
+            // Get the name of a column
+            function getPlaceName(position) {
 
-                <table class="addition-table">
-                    <tbody>
-            `;
+                const decimalNames = [
+                    "Tenths",
+                    "Hundredths",
+                    "Thousandths",
+                    "Ten-thousandths",
+                    "Hundred-thousandths",
+                    "Millionths"
+                ];
 
-            numbers.forEach((number, index) => {
+                const placeNames = [
+                    "Ones",
+                    "Tens",
+                    "Hundreds",
+                    "Thousands",
+                    "Ten-thousands",
+                    "Hundred-thousands",
+                    "Millions",
+                    "Ten-millions",
+                    "Hundred-millions",
+                    "Billions"
+                ];
 
-                verticalProblem += `
+                if (position < decimalPlaces) {
+
+                    return decimalNames[
+                        decimalPlaces - 1 - position
+                    ] || "Decimal place";
+
+                }
+
+                return placeNames[
+                    position - decimalPlaces
+                ] || "Integer place";
+            }
+
+            // ==================================================
+            // COLUMN-BY-COLUMN CALCULATION
+            // ==================================================
+
+            function calculateColumns(first, second, operation) {
+
+                // Create aligned digit arrays
+                const width = Math.max(
+                    first.toString().length,
+                    second.toString().length,
+                    decimalPlaces + 1
+                ) + 1;
+
+                const originalTop = first.toString()
+                    .padStart(width, "0")
+                    .split("")
+                    .map(Number);
+
+                const bottomDigits = second.toString()
+                    .padStart(width, "0")
+                    .split("")
+                    .map(Number);
+
+                // Keep a separate copy for borrowing
+                const topDigits = [...originalTop];
+
+                const resultDigits = Array(width).fill(0);
+
+                const columns = [];
+
+                let carry = 0;
+
+                // Work from right to left
+                for (let i = width - 1; i >= 0; i--) {
+
+                    const borrowEvents = [];
+
+                    const topBefore = topDigits[i];
+
+                    const bottomDigit = bottomDigits[i];
+
+                    // ------------------------------------------
+                    // SUBTRACTION AND BORROWING
+                    // ------------------------------------------
+
+                    if (operation === "subtract") {
+
+                        // Check whether borrowing is necessary
+                        if (topDigits[i] < bottomDigit) {
+
+                            // Find the next column to the left
+                            let donor = i - 1;
+
+                            while (
+                                donor >= 0 &&
+                                topDigits[donor] === 0
+                            ) {
+                                donor--;
+                            }
+
+                            if (donor < 0) {
+                                throw new Error(
+                                    "Unable to complete borrowing."
+                                );
+                            }
+
+                            // Reduce the donating digit by 1
+                            const donorBefore = topDigits[donor];
+
+                            topDigits[donor]--;
+
+                            borrowEvents.push({
+                                type: "donor",
+                                position: width - 1 - donor,
+                                before: donorBefore,
+                                after: topDigits[donor]
+                            });
+
+                            // Change any zeros between columns
+                            for (
+                                let j = donor + 1;
+                                j < i;
+                                j++
+                            ) {
+
+                                const before = topDigits[j];
+
+                                topDigits[j] = 9;
+
+                                borrowEvents.push({
+                                    type: "middle",
+                                    position: width - 1 - j,
+                                    before,
+                                    after: 9
+                                });
+                            }
+
+                            // Add 10 to the current column
+                            topDigits[i] += 10;
+
+                            borrowEvents.push({
+                                type: "current",
+                                position: width - 1 - i,
+                                before: topBefore,
+                                after: topDigits[i]
+                            });
+                        }
+
+                        // Perform the subtraction
+                        const resultDigit =
+                            topDigits[i] - bottomDigit;
+
+                        resultDigits[i] = resultDigit;
+
+                        columns.push({
+                            position: width - 1 - i,
+                            topBefore,
+                            topAfter: topDigits[i],
+                            bottomDigit,
+                            resultDigit,
+                            borrowEvents
+                        });
+                    }
+
+                    // ------------------------------------------
+                    // ADDITION AND CARRYING
+                    // ------------------------------------------
+
+                    else {
+
+                        const carryIn = carry;
+
+                        const columnTotal =
+                            topDigits[i] +
+                            bottomDigit +
+                            carryIn;
+
+                        const resultDigit = columnTotal % 10;
+
+                        const carryOut =
+                            Math.floor(columnTotal / 10);
+
+                        resultDigits[i] = resultDigit;
+
+                        columns.push({
+                            position: width - 1 - i,
+                            topBefore,
+                            topAfter: topDigits[i],
+                            bottomDigit,
+                            carryIn,
+                            columnTotal,
+                            resultDigit,
+                            carryOut
+                        });
+
+                        carry = carryOut;
+                    }
+                }
+
+                // Build the final calculated value
+                const resultString = resultDigits
+                    .join("")
+                    .replace(/^0+(?=\d)/, "");
+
+                return {
+                    originalTop,
+                    topDigits,
+                    bottomDigits,
+                    resultDigits,
+                    columns,
+                    result: BigInt(resultString || "0"),
+                    width
+                };
+            }
+
+            // ==================================================
+            // DISPLAY THE VERTICAL CALCULATION
+            // ==================================================
+
+            function createColumnTable(calculation, operation) {
+
+                const {
+                    originalTop,
+                    topDigits,
+                    bottomDigits,
+                    resultDigits,
+                    width,
+                    columns
+                } = calculation;
+
+                // Build a row of aligned digits
+                function createRow(digits) {
+
+                    let cells = "";
+
+                    for (let i = 0; i < width; i++) {
+
+                        if (
+                            decimalPlaces > 0 &&
+                            i === width - decimalPlaces
+                        ) {
+                            cells += `
+                                <td class="decimal-point">.</td>
+                            `;
+                        }
+
+                        cells += `<td>${digits[i]}</td>`;
+                    }
+
+                    return cells;
+                }
+
+                // Show the original number
+                let table = `
+                    <table class="addition-table">
+                        <tbody>
+
+                            <tr>
+                                <td class="sign"></td>
+                                ${createRow(originalTop)}
+                            </tr>
+                `;
+
+                // Show adjusted digits after borrowing
+                if (
+                    operation === "subtract" &&
+                    columns.some(column =>
+                        column.borrowEvents.length > 0
+                    )
+                ) {
+
+                    table += `
+                        <tr class="carry-row">
+                            <td class="sign">→</td>
+                            ${createRow(topDigits)}
+                        </tr>
+                    `;
+                }
+
+                // Show the bottom number
+                table += `
                     <tr>
                         <td class="sign">
-                            ${index === numbers.length - 1 ? "+" : ""}
+                            ${operation === "add" ? "+" : "-"}
                         </td>
 
-                        <td>${number}</td>
+                        ${createRow(bottomDigits)}
                     </tr>
-                `;
-            });
 
-            // Display the answer row
-            verticalProblem += `
                     <tr class="answer-row">
                         <td class="sign"></td>
-                        <td>${formatNumber(total)}</td>
+                        ${createRow(resultDigits)}
                     </tr>
 
-                    </tbody>
-                </table>
-            `;
+                        </tbody>
+                    </table>
+                `;
 
-            // Build step-by-step explanations
+                return table;
+            }
+
+            // ==================================================
+            // BUILD STEP-BY-STEP EXPLANATIONS
+            // ==================================================
+
             let stepsHTML =
                 "<h3>Step-by-Step Instructions</h3>";
 
-            // Start with the first number
             let runningTotal = values[0];
 
             stepsHTML += `
@@ -217,7 +476,7 @@ additionButton.addEventListener("click", function() {
                 </div>
             `;
 
-            // Process the remaining numbers
+            // Process each additional number
             for (let i = 1; i < values.length; i++) {
 
                 const nextNumber = values[i];
@@ -234,92 +493,256 @@ additionButton.addEventListener("click", function() {
                     ? -nextNumber
                     : nextNumber;
 
-                let explanation;
+                let operation;
 
-                // Handle zero
+                let larger;
+                let smaller;
+
+                let resultSign;
+
+                // Determine whether to add or subtract
                 if (
                     previousTotal === 0n ||
                     nextNumber === 0n
                 ) {
 
-                    explanation = `
-                        Adding zero does not change the value.
-                    `;
+                    operation = "add";
+
+                    larger = absolutePrevious;
+                    smaller = absoluteNext;
+
+                    resultSign = previousTotal === 0n
+                        ? (nextNumber < 0n ? -1n : 1n)
+                        : (previousTotal < 0n ? -1n : 1n);
 
                 }
 
-                // Handle numbers with the same sign
+                // Same signs: add absolute values
                 else if (
                     (previousTotal < 0n) === (nextNumber < 0n)
                 ) {
 
-                    explanation = `
-                        Both numbers have the same sign.
-                        Add their absolute values and keep
-                        the same sign.
+                    operation = "add";
 
-                        ${formatNumber(absolutePrevious)}
-                        + ${formatNumber(absoluteNext)}
-                        = ${formatNumber(
-                            absolutePrevious + absoluteNext
-                        )}.
-                    `;
+                    larger = absolutePrevious;
+                    smaller = absoluteNext;
+
+                    resultSign = previousTotal < 0n ? -1n : 1n;
 
                 }
 
-                // Handle equal absolute values with opposite signs
-                else if (absolutePrevious === absoluteNext) {
-
-                    explanation = `
-                        The numbers have different signs
-                        and equal absolute values.
-
-                        They cancel each other out.
-                        The result is zero.
-                    `;
-
-                }
-
-                // Handle different signs
+                // Different signs: subtract absolute values
                 else {
 
-                    const larger =
-                        absolutePrevious > absoluteNext
+                    operation = "subtract";
+
+                    larger = absolutePrevious >= absoluteNext
                         ? absolutePrevious
                         : absoluteNext;
 
-                    const smaller =
-                        absolutePrevious > absoluteNext
+                    smaller = absolutePrevious >= absoluteNext
                         ? absoluteNext
                         : absolutePrevious;
 
-                    const largerIsNegative =
-                        absolutePrevious > absoluteNext
-                        ? previousTotal < 0n
-                        : nextNumber < 0n;
+                    if (absolutePrevious === absoluteNext) {
+
+                        resultSign = 0n;
+
+                    } else if (absolutePrevious > absoluteNext) {
+
+                        resultSign =
+                            previousTotal < 0n ? -1n : 1n;
+
+                    } else {
+
+                        resultSign =
+                            nextNumber < 0n ? -1n : 1n;
+                    }
+                }
+
+                // Calculate each column
+                const calculation = calculateColumns(
+                    larger,
+                    smaller,
+                    operation
+                );
+
+                // Apply the correct sign
+                runningTotal = calculation.result === 0n
+                    ? 0n
+                    : calculation.result * resultSign;
+
+                // Explain the operation
+                let explanation;
+
+                if (operation === "add") {
+
+                    explanation = `
+                        Both numbers have the same sign,
+                        or one number is zero.
+
+                        Add the absolute values and
+                        keep the sign of the nonzero number.
+                    `;
+
+                } else {
 
                     explanation = `
                         The numbers have different signs.
 
+                        Ignore the signs temporarily.
                         Subtract the smaller absolute value
-                        from the larger:
-
-                        ${formatNumber(larger)}
-                        - ${formatNumber(smaller)}
-                        = ${formatNumber(larger - smaller)}.
-
-                        Keep the sign of the number with
-                        the larger absolute value:
-
-                        ${largerIsNegative ? "Negative" : "Positive"}.
+                        from the larger absolute value.
                     `;
                 }
 
-                // Update the running total
-                runningTotal += nextNumber;
+                // Explain every column
+                let columnSteps = "";
 
-                // Add the explanation to the page
+                calculation.columns.forEach(column => {
+
+                    const placeName = getPlaceName(
+                        column.position
+                    );
+
+                    if (operation === "subtract") {
+
+                        let borrowingExplanation = "";
+
+                        column.borrowEvents.forEach(event => {
+
+                            const eventPlace = getPlaceName(
+                                event.position
+                            );
+
+                            if (event.type === "donor") {
+
+                                borrowingExplanation += `
+                                    <p>
+                                        Borrow 1 from the
+                                        ${eventPlace} column.
+
+                                        Change ${event.before}
+                                        to ${event.after}.
+                                    </p>
+                                `;
+                            }
+
+                            else if (event.type === "middle") {
+
+                                borrowingExplanation += `
+                                    <p>
+                                        The ${eventPlace} column
+                                        was zero.
+
+                                        Change 0 to 9 as the
+                                        borrowing passes through.
+                                    </p>
+                                `;
+                            }
+
+                            else if (event.type === "current") {
+
+                                borrowingExplanation += `
+                                    <p>
+                                        Add 10 to the
+                                        ${placeName} column.
+
+                                        Change ${event.before}
+                                        to ${event.after}.
+                                    </p>
+                                `;
+                            }
+                        });
+
+                        columnSteps += `
+                            <div class="addition-step">
+
+                                <h4>${placeName} Column</h4>
+
+                                ${borrowingExplanation}
+
+                                <p>
+                                    Now subtract:
+
+                                    ${column.topAfter}
+                                    - ${column.bottomDigit}
+                                    = ${column.resultDigit}
+                                </p>
+
+                                <p>
+                                    Write down
+                                    <strong>${column.resultDigit}</strong>.
+                                </p>
+
+                            </div>
+                        `;
+                    }
+
+                    else {
+
+                        columnSteps += `
+                            <div class="addition-step">
+
+                                <h4>${placeName} Column</h4>
+
+                                <p>
+                                    ${column.topBefore}
+                                    + ${column.bottomDigit}
+                                    ${column.carryIn > 0
+                                        ? `+ ${column.carryIn}`
+                                        : ""}
+                                    = ${column.columnTotal}
+                                </p>
+
+                                <p>
+                                    Write down
+                                    <strong>${column.resultDigit}</strong>.
+
+                                    ${
+                                        column.carryOut > 0
+                                        ? `Carry ${column.carryOut}
+                                           into the next column.`
+                                        : "No carry is needed."
+                                    }
+                                </p>
+
+                            </div>
+                        `;
+                    }
+                });
+
+                // Explain the final sign
+                let signExplanation;
+
+                if (runningTotal === 0n) {
+
+                    signExplanation = `
+                        The absolute values are equal.
+                        The numbers cancel each other out.
+                        The answer is zero.
+                    `;
+
+                } else if (operation === "add") {
+
+                    signExplanation = `
+                        Keep the sign of the original numbers.
+                    `;
+
+                } else {
+
+                    signExplanation = `
+                        Keep the sign of the number
+                        with the greater absolute value.
+
+                        The answer is
+                        ${resultSign < 0n ? "negative" : "positive"}.
+                    `;
+                }
+
+                // Add the complete step to the page
                 stepsHTML += `
+
                     <div class="addition-step">
 
                         <h4>Step ${i + 1}: Add ${numbers[i]}</h4>
@@ -330,6 +753,22 @@ additionButton.addEventListener("click", function() {
                         </p>
 
                         <p>${explanation}</p>
+
+                        <div class="vertical-problem">
+
+                            ${createColumnTable(
+                                calculation,
+                                operation
+                            )}
+
+                        </div>
+
+                        ${columnSteps}
+
+                        <p>
+                            <strong>Determine the sign:</strong>
+                            ${signExplanation}
+                        </p>
 
                         <p>
                             Running total:
@@ -342,26 +781,24 @@ additionButton.addEventListener("click", function() {
                 `;
             }
 
-            // Display the complete negative-number solution
+            // Display the complete solution
             answerDisplay.innerHTML = `
-
-                <div class="vertical-problem">
-                    ${verticalProblem}
-                </div>
 
                 <div class="step-explanations">
                     ${stepsHTML}
                 </div>
 
                 <div class="final-answer">
+
                     <h3>Final Answer</h3>
-                    <h2>${formatNumber(total)}</h2>
+
+                    <h2>${formatNumber(runningTotal)}</h2>
+
                 </div>
 
             `;
 
-            // Stop here so positive-number calculation
-            // does not run
+            // Stop here; do not run positive calculation
             return;
         }
 
@@ -621,7 +1058,6 @@ additionButton.addEventListener("click", function() {
 
             if (i < decimalPlaces) {
 
-                // Assign decimal names from right to left
                 const decimalPosition =
                     decimalPlaces - 1 - i;
 
