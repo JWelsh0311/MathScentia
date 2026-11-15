@@ -58,7 +58,8 @@ additionButton.addEventListener("click", function() {
     // Listen for Solve button clicks
     solveButton.addEventListener("click", function() {
 
-        const answerDisplay = document.getElementById("answer-display");
+        const answerDisplay =
+            document.getElementById("answer-display");
 
         // Collect all four numbers
         const numbers = [
@@ -75,14 +76,298 @@ additionButton.addEventListener("click", function() {
             return;
         }
 
-        // Validate the numbers
+        // Validate positive and negative numbers
         const numberPattern = /^-?\d+(\.\d+)?$/;
 
         if (!numbers.every(number => numberPattern.test(number))) {
             answerDisplay.textContent =
-                "Please enter valid positive numbers.";
+                "Please enter valid positive or negative numbers.";
             return;
         }
+
+        // ==================================================
+        // NEGATIVE NUMBER CALCULATION
+        // ==================================================
+
+        // Check whether any number is negative
+        if (numbers.some(number => number.startsWith("-"))) {
+
+            // Find the maximum decimal places
+            const decimalPlaces = Math.max(
+                ...numbers.map(number =>
+                    (number.split(".")[1] || "").length
+                )
+            );
+
+            // Convert decimals into whole-number units
+            const scale = 10n ** BigInt(decimalPlaces);
+
+            // Convert a number into a scaled BigInt
+            function toScaledInteger(number) {
+
+                const negative = number.startsWith("-");
+
+                const unsigned = negative
+                    ? number.slice(1)
+                    : number;
+
+                const parts = unsigned.split(".");
+
+                const whole = parts[0];
+
+                const decimal = (parts[1] || "")
+                    .padEnd(decimalPlaces, "0");
+
+                const value = BigInt(whole + decimal);
+
+                return negative ? -value : value;
+            }
+
+            // Convert all entered numbers
+            const values = numbers.map(toScaledInteger);
+
+            // Calculate the final answer
+            const total = values.reduce(
+                (sum, value) => sum + value,
+                0n
+            );
+
+            // Format scaled numbers for display
+            function formatNumber(value) {
+
+                const negative = value < 0n;
+
+                const absolute = negative ? -value : value;
+
+                let digits = absolute.toString();
+
+                if (decimalPlaces > 0) {
+
+                    digits = digits.padStart(
+                        decimalPlaces + 1, "0"
+                    );
+
+                    const whole = digits.slice(
+                        0, -decimalPlaces
+                    );
+
+                    let decimal = digits.slice(
+                        -decimalPlaces
+                    );
+
+                    decimal = decimal.replace(/0+$/, "");
+
+                    digits = decimal
+                        ? whole + "." + decimal
+                        : whole;
+                }
+
+                return (negative ? "-" : "") + digits;
+            }
+
+            // Build the vertical problem
+            let verticalProblem = `
+                <h3>Let's Work It Out!</h3>
+
+                <table class="addition-table">
+                    <tbody>
+            `;
+
+            numbers.forEach((number, index) => {
+
+                verticalProblem += `
+                    <tr>
+                        <td class="sign">
+                            ${index === numbers.length - 1 ? "+" : ""}
+                        </td>
+
+                        <td>${number}</td>
+                    </tr>
+                `;
+            });
+
+            // Display the answer row
+            verticalProblem += `
+                    <tr class="answer-row">
+                        <td class="sign"></td>
+                        <td>${formatNumber(total)}</td>
+                    </tr>
+
+                    </tbody>
+                </table>
+            `;
+
+            // Build step-by-step explanations
+            let stepsHTML =
+                "<h3>Step-by-Step Instructions</h3>";
+
+            // Start with the first number
+            let runningTotal = values[0];
+
+            stepsHTML += `
+                <div class="addition-step">
+
+                    <h4>Step 1: Starting Number</h4>
+
+                    <p>
+                        Start with
+                        <strong>${numbers[0]}</strong>.
+                    </p>
+
+                </div>
+            `;
+
+            // Process the remaining numbers
+            for (let i = 1; i < values.length; i++) {
+
+                const nextNumber = values[i];
+
+                const previousTotal = runningTotal;
+
+                const absolutePrevious =
+                    previousTotal < 0n
+                    ? -previousTotal
+                    : previousTotal;
+
+                const absoluteNext =
+                    nextNumber < 0n
+                    ? -nextNumber
+                    : nextNumber;
+
+                let explanation;
+
+                // Handle zero
+                if (
+                    previousTotal === 0n ||
+                    nextNumber === 0n
+                ) {
+
+                    explanation = `
+                        Adding zero does not change the value.
+                    `;
+
+                }
+
+                // Handle numbers with the same sign
+                else if (
+                    (previousTotal < 0n) === (nextNumber < 0n)
+                ) {
+
+                    explanation = `
+                        Both numbers have the same sign.
+                        Add their absolute values and keep
+                        the same sign.
+
+                        ${formatNumber(absolutePrevious)}
+                        + ${formatNumber(absoluteNext)}
+                        = ${formatNumber(
+                            absolutePrevious + absoluteNext
+                        )}.
+                    `;
+
+                }
+
+                // Handle equal absolute values with opposite signs
+                else if (absolutePrevious === absoluteNext) {
+
+                    explanation = `
+                        The numbers have different signs
+                        and equal absolute values.
+
+                        They cancel each other out.
+                        The result is zero.
+                    `;
+
+                }
+
+                // Handle different signs
+                else {
+
+                    const larger =
+                        absolutePrevious > absoluteNext
+                        ? absolutePrevious
+                        : absoluteNext;
+
+                    const smaller =
+                        absolutePrevious > absoluteNext
+                        ? absoluteNext
+                        : absolutePrevious;
+
+                    const largerIsNegative =
+                        absolutePrevious > absoluteNext
+                        ? previousTotal < 0n
+                        : nextNumber < 0n;
+
+                    explanation = `
+                        The numbers have different signs.
+
+                        Subtract the smaller absolute value
+                        from the larger:
+
+                        ${formatNumber(larger)}
+                        - ${formatNumber(smaller)}
+                        = ${formatNumber(larger - smaller)}.
+
+                        Keep the sign of the number with
+                        the larger absolute value:
+
+                        ${largerIsNegative ? "Negative" : "Positive"}.
+                    `;
+                }
+
+                // Update the running total
+                runningTotal += nextNumber;
+
+                // Add the explanation to the page
+                stepsHTML += `
+                    <div class="addition-step">
+
+                        <h4>Step ${i + 1}: Add ${numbers[i]}</h4>
+
+                        <p>
+                            ${formatNumber(previousTotal)}
+                            + (${numbers[i]})
+                        </p>
+
+                        <p>${explanation}</p>
+
+                        <p>
+                            Running total:
+                            <strong>
+                                ${formatNumber(runningTotal)}
+                            </strong>
+                        </p>
+
+                    </div>
+                `;
+            }
+
+            // Display the complete negative-number solution
+            answerDisplay.innerHTML = `
+
+                <div class="vertical-problem">
+                    ${verticalProblem}
+                </div>
+
+                <div class="step-explanations">
+                    ${stepsHTML}
+                </div>
+
+                <div class="final-answer">
+                    <h3>Final Answer</h3>
+                    <h2>${formatNumber(total)}</h2>
+                </div>
+
+            `;
+
+            // Stop here so positive-number calculation
+            // does not run
+            return;
+        }
+
+        // ==================================================
+        // POSITIVE NUMBER CALCULATION
+        // ==================================================
 
         // Find the longest decimal portion
         const decimalPlaces = Math.max(
@@ -103,7 +388,9 @@ additionButton.addEventListener("click", function() {
 
             const parts = number.split(".");
 
-            const whole = parts[0].padStart(wholePlaces, "0");
+            const whole = parts[0].padStart(
+                wholePlaces, "0"
+            );
 
             const decimal = (parts[1] || "")
                 .padEnd(decimalPlaces, "0");
@@ -165,17 +452,27 @@ additionButton.addEventListener("click", function() {
 
         if (decimalPlaces > 0) {
 
-            answerWhole = answerDigits.slice(0, -decimalPlaces);
+            answerWhole = answerDigits.slice(
+                0, -decimalPlaces
+            );
 
-            answerDecimal = answerDigits.slice(-decimalPlaces);
+            answerDecimal = answerDigits.slice(
+                -decimalPlaces
+            );
 
-            answerWhole = answerWhole.replace(/^0+(?=\d)/, "");
+            answerWhole = answerWhole.replace(
+                /^0+(?=\d)/, ""
+            );
 
-            answerDecimal = answerDecimal.replace(/0+$/, "");
+            answerDecimal = answerDecimal.replace(
+                /0+$/, ""
+            );
 
         } else {
 
-            answerWhole = answerDigits.replace(/^0+(?=\d)/, "");
+            answerWhole = answerDigits.replace(
+                /^0+(?=\d)/, ""
+            );
 
         }
 
@@ -194,7 +491,9 @@ additionButton.addEventListener("click", function() {
         // Create a row of aligned digits
         function createDisplayRow(digitString) {
 
-            const padded = digitString.padStart(displayWidth, "0");
+            const padded = digitString.padStart(
+                displayWidth, "0"
+            );
 
             let cells = "";
 
@@ -204,7 +503,9 @@ additionButton.addEventListener("click", function() {
                     decimalPlaces > 0 &&
                     i === displayWidth - decimalPlaces
                 ) {
-                    cells += `<td class="decimal-point">.</td>`;
+                    cells += `
+                        <td class="decimal-point">.</td>
+                    `;
                 }
 
                 cells += `<td>${padded[i]}</td>`;
@@ -234,7 +535,9 @@ additionButton.addEventListener("click", function() {
                 decimalPlaces > 0 &&
                 index === displayWidth - decimalPlaces
             ) {
-                carryRow += `<td class="decimal-point">.</td>`;
+                carryRow += `
+                    <td class="decimal-point">.</td>
+                `;
             }
 
             carryRow += `<td>${digit}</td>`;
@@ -304,7 +607,8 @@ additionButton.addEventListener("click", function() {
         ];
 
         // Generate step-by-step explanations
-        let stepsHTML = "<h3>Step-by-Step Instructions</h3>";
+        let stepsHTML =
+            "<h3>Step-by-Step Instructions</h3>";
 
         let stepNumber = 1;
 
@@ -317,19 +621,20 @@ additionButton.addEventListener("click", function() {
 
             if (i < decimalPlaces) {
 
-              const decimalPosition = decimalPlaces - 1 - i;
+                // Assign decimal names from right to left
+                const decimalPosition =
+                    decimalPlaces - 1 - i;
 
-              placeName = decimalNames[decimalPosition] ||
-               `Decimal place ${decimalPosition + 1}`;
+                placeName = decimalNames[decimalPosition] ||
+                    `Decimal place ${decimalPosition + 1}`;
 
             } else {
 
-               const integerPosition = i - decimalPlaces;
+                const integerPosition = i - decimalPlaces;
 
-               placeName = placeNames[integerPosition] ||
-                 `Integer place ${integerPosition + 1}`;
-
-}
+                placeName = placeNames[integerPosition] ||
+                    `Integer place ${integerPosition + 1}`;
+            }
 
             // Build the calculation for this column
             let calculation = column.digits.join(" + ");
@@ -371,13 +676,16 @@ additionButton.addEventListener("click", function() {
 
             stepsHTML += `
                 <div class="addition-step">
+
                     <h4>Final Carry</h4>
+
                     <p>Bring down the remaining ${carry}.</p>
+
                 </div>
             `;
         }
 
-        // Display the complete solution
+        // Display the complete positive-number solution
         answerDisplay.innerHTML = `
 
             <div class="vertical-problem">
