@@ -146,6 +146,13 @@ body > *:last-child {
     padding-bottom: 0 !important;
 }
 
+@media screen and (max-width: 600px) {
+    main h1 {
+        font-size: 1.2rem;
+        white-space: nowrap;
+    }
+}
+
 /* Tablet and smaller screens */
 @media (max-width: 800px) {
     .buttons-wrapper {
