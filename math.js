@@ -317,17 +317,19 @@ additionButton.addEventListener("click", function() {
 
             if (i < decimalPlaces) {
 
-                placeName = decimalNames[i] ||
-                    `Decimal place ${i + 1}`;
+              const decimalPosition = decimalPlaces - 1 - i;
+
+              placeName = decimalNames[decimalPosition] ||
+               `Decimal place ${decimalPosition + 1}`;
 
             } else {
 
-                const integerPosition = i - decimalPlaces;
+               const integerPosition = i - decimalPlaces;
 
-                placeName = placeNames[integerPosition] ||
-                    `Integer place ${integerPosition + 1}`;
+               placeName = placeNames[integerPosition] ||
+                 `Integer place ${integerPosition + 1}`;
 
-            }
+}
 
             // Build the calculation for this column
             let calculation = column.digits.join(" + ");
