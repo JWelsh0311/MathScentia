@@ -1,0 +1,178 @@
+body {
+    background: linear-gradient(
+        135deg,
+        #071525,
+        #102c4c,
+        #145b83,
+        #0d1b2a
+    );
+    background-attachment: fixed;
+    color: #eaf4ff;
+    font-family: 'Oswald', sans-serif;
+    margin: 0 auto;
+    padding: 40px 15px 0;
+    max-width: 1200px;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+}
+
+main {
+    flex: 1;
+}
+
+.hero-image {
+    display: block;
+    width: 1000px;
+    max-width: 90%;
+    height: auto;
+    margin: 0 auto 15px auto;
+}
+
+h1 {
+    color: #eaf4ff;
+    font-weight: bold;
+    text-align: center;
+    margin: 25px auto 50px;
+    letter-spacing: 2px;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.buttons-wrapper {
+    display: grid;
+    grid-template-columns: repeat(2, 220px);
+    justify-content: center;
+    gap: 25px;
+    margin: 30px auto;
+}
+
+/* Individual math boxes */
+.math-box {
+    background: linear-gradient(145deg, #163653, #0d1b2a);
+    border-radius: 15px;
+    min-width: 0;
+    aspect-ratio: 1 / 1;
+    padding: 15px;
+
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+
+    text-align: center;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.4);
+    transition: 0.3s ease;
+}
+
+.math-box:hover {
+    transform: translateY(-5px);
+    border-color: white;
+}
+
+/* Math symbols */
+.math-symbol {
+    font-size: 38px;
+    font-weight: bold;
+    color: #dceeff;
+}
+
+.math-box h2 {
+    color: white;
+    font-size: 19px;
+    margin: 8px 0;
+}
+
+/* Addition - Green */
+.addition {
+    border: 2px solid #2ecc71;
+    background: linear-gradient(145deg, #164b3a, #0d1b2a);
+}
+
+/* Subtraction - Orange */
+.subtraction {
+    border: 2px solid #f39c12;
+    background: linear-gradient(145deg, #59401c, #0d1b2a);
+}
+
+/* Multiplication - Blue */
+.multiplication {
+    border: 2px solid #3498db;
+    background: linear-gradient(145deg, #163f60, #0d1b2a);
+}
+
+/* Division - Purple */
+.division {
+    border: 2px solid #9b59b6;
+    background: linear-gradient(145deg, #42264f, #0d1b2a);
+}
+
+/* Hide workspace until an operation is selected */
+.hidden {
+    display: none;
+}
+
+#math-workspace {
+    background: linear-gradient(145deg, #163653, #0d1b2a);
+    border: 1px solid #5dade2;
+    border-radius: 15px;
+    padding: 25px;
+    margin: 30px auto;
+    max-width: 650px;
+    text-align: center;
+}
+
+.page-footer {
+    margin-top: auto;
+}
+
+.copyright {
+	color: white;
+	text-align: center;
+	font-family: Arial, sans-serif;
+	font-size:14px;
+	font-weight: bold;
+	padding:8px 0;
+}
+
+.copyright a {
+    color: white;
+    text-decoration: underline;
+}
+
+body > *:last-child {
+    margin-bottom: 0 !important;
+    padding-bottom: 0 !important;
+}
+
+/* Tablet and smaller screens */
+@media (max-width: 800px) {
+    .buttons-wrapper {
+        grid-template-columns: repeat(2, 180px);
+    }
+}
+
+/* Mobile screens */
+@media (max-width: 480px) {
+
+    .hero-image {
+        width: 100%;
+        max-width: 100%;
+        height: auto;
+        margin: 0 auto 20px auto;
+    }
+
+    body {
+        padding: 40px 10px 0;
+        max-width: 100%;
+    }
+
+    .buttons-wrapper {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+    }
+
+    .math-box {
+        padding: 10px;
+    }
+}
